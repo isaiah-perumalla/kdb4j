@@ -7,10 +7,16 @@
 * Allocation free in steady state
 
 
-* 
+
+## verify what's actually inside the container:
+bash
+
+sudo docker run --rm -it --entrypoint /bin/bash kdb4j-test:latest
+
+
 ## Building kdb ticker plant docker image
 1. build docker image, `cd kdb` 
-2. `sudo docker build -t kdb4j-test:latest .`
+2. `sudo docker build  -f Dockerfile.debian -t kdb4j-test:latest .`
 3. tickerplant listens on port 5010, RDB on 5011 and HDB on port 5012
 4. `docker run `docker run -t -p 5010-5012:5010-5012 kdb4j-test:latest -v <dir-to-store-hdb>:/data`
 5. run `SystemTests` to verify can connect to ticker plant inside docker container

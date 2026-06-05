@@ -9,11 +9,13 @@ import org.agrona.MutableDirectBuffer;
 
 import java.nio.ByteOrder;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 
 public class TestDataPublisher implements KdbEventHandler {
     private  final MutableDirectBuffer writeBuffer = new ExpandableDirectByteBuffer(4096);
     private KdbConnection currentSession;
     private boolean closed;
+    private long lastPublishNs;
 
     @Override
     public int onConnected(KdbConnection c) {
@@ -29,6 +31,10 @@ public class TestDataPublisher implements KdbEventHandler {
     }
 
     private  int publishData(KdbConnection k) {
+        long elapsed = System.nanoTime() - lastPublishNs;
+        if (elapsed < TimeUnit.SECONDS.toNanos(60)) {
+            return 0;
+        }
         if(k.isWritable()) {
 
             MutableDirectBuffer buff = writeBuffer;
@@ -36,8 +42,10 @@ public class TestDataPublisher implements KdbEventHandler {
             int size = writeData(buff, 0);
             int write = k.write(buff, 0, size);
             write += k.writeSync();
+            lastPublishNs = System.nanoTime();
             return write;
         }
+
         return 0;
     }
 
@@ -60,8 +68,13 @@ public class TestDataPublisher implements KdbEventHandler {
     }
 
     public void publish() {
-        if(currentSession != null)
-            publishData(currentSession);
+        if(currentSession != null) {
+            int bytes = publishData(currentSession);
+            System.out.printf("published %d bytes \n" , bytes);
+        }
+        else {
+            System.err.print("session not connected \n");
+        }
 
     }
 

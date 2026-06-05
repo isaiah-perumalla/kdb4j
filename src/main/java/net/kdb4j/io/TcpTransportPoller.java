@@ -9,27 +9,28 @@ import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.util.Iterator;
+import java.util.Set;
 
 public class TcpTransportPoller extends TransportPoller {
     private TcpEndPoint[] endPoints = new TcpEndPoint[0];
 
     public TcpTransportPoller() {
-
     }
 
     public void registerForOpen(TcpEndPoint channel) throws ClosedChannelException {
         channel.channel.register(selector, SelectionKey.OP_CONNECT, channel);
-
     }
+
     void registerForWrite(TcpEndPoint tcpEndPoint) throws ClosedChannelException {
         tcpEndPoint.channel.register(selector, SelectionKey.OP_WRITE, tcpEndPoint);
     }
-    void registerForRead(TcpEndPoint tcpEndPoint) {
 
+    void registerForRead(TcpEndPoint tcpEndPoint) {
         try {
             tcpEndPoint.channel.register(selector, SelectionKey.OP_READ, tcpEndPoint);
         } catch (ClosedChannelException e) {
-           LangUtil.rethrowUnchecked(e);
+            LangUtil.rethrowUnchecked(e);
         }
     }
 
@@ -38,7 +39,7 @@ public class TcpTransportPoller extends TransportPoller {
         SocketChannel channel = SocketChannel.open();
         channel.configureBlocking(false);
 
-        TcpEndPoint tcpEndPoint = new TcpEndPoint(remote, channel, this,  connectionHandler, id);
+        TcpEndPoint tcpEndPoint = new TcpEndPoint(remote, channel, this, connectionHandler, id);
         endPoints = ArrayUtil.add(endPoints, tcpEndPoint);
         registerForOpen(tcpEndPoint);
         channel.connect(remote);
@@ -48,30 +49,28 @@ public class TcpTransportPoller extends TransportPoller {
         int bytes = 0;
         try {
             selector.selectNow();
-            SelectionKey[] keys = selectedKeySet.keys();
-            for (int i = 0; i < selectedKeySet.size(); i++) {
-                bytes += poll(keys[i]);
+            final Set<SelectionKey> keys = selector.selectedKeys();
+            final Iterator<SelectionKey> iterator = keys.iterator();
+            while (iterator.hasNext()) {
+                final SelectionKey key = iterator.next();
+                iterator.remove(); // must remove to avoid reprocessing
+                bytes += poll(key);
             }
-            selectedKeySet.reset(); //all ready ops were dealt with so reset this set
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             LangUtil.rethrowUnchecked(e);
         }
         return bytes;
     }
 
     private int poll(SelectionKey key) {
-        Object attachment = key.attachment();
-        TcpEndPoint endPoint = (TcpEndPoint) attachment;
+        final TcpEndPoint endPoint = (TcpEndPoint) key.attachment();
         int bytes = 0;
-        if(key.isConnectable()) {
+        if (key.isConnectable()) {
             bytes += endPoint.onConnected();
         }
-        if(key.isReadable()) {
+        if (key.isReadable()) {
             bytes += endPoint.onRead();
         }
         return bytes;
     }
-
-
 }
