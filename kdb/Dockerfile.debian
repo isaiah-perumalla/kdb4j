@@ -1,7 +1,7 @@
 FROM debian:bullseye-slim
 ARG DEBIAN_FRONTEND=noninteractive
 
-COPY ./q /root/q
+COPY ./q32/q /root/q
 COPY ./ticker /root/ticker
 COPY ./tick.sh /root
 RUN chmod 744 /root/tick.sh
